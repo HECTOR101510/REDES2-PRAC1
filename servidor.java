@@ -23,13 +23,14 @@ public class servidor {
             ex.printStackTrace();
         }
     }
-
+    private static String dirActual = "/home/hector/Documentos/ESCOM/SEMESTRE 6/REDES 2/REDES2-PRAC1"; 
     private static void menu(Socket cl){
         try {
             BufferedReader in=new BufferedReader(new InputStreamReader(cl.getInputStream()));
             PrintWriter out=new PrintWriter(cl.getOutputStream(),true);
             String op=in.readLine();
-
+            System.out.println(">>>>>Directorio actual: " + dirActual);
+            out.println(op);
             switch (op) {
                 case "LISTAR":
                     carpeta(cl);
@@ -37,7 +38,18 @@ public class servidor {
                 case "CREAR":
                     crear(in.readLine());
                     break;
-            
+                case "ELIMINAR":
+                    System.out.println("Escribe el nombre del archivo o carpeta a eliminar: ");
+                    elimina(in.readLine());
+                    break;
+                case "CD":
+                    System.out.print("Escribe el nuevo directorio: ");
+                    String dir=in.readLine();
+                    out.println(dir);
+                    dirActual=dir;
+                    System.out.println("\n>>>>>Listo direcccion cambiada a: "+dirActual);
+                    break;
+
                 default:
                 System.out.println("Operacion no reconocida: "+op);
                     break;
@@ -47,8 +59,29 @@ public class servidor {
         }
     }
 
+    private static void elimina(String namecar) {
+        File ncarp=new File(dirActual, namecar);
+        if(ncarp.exists()){
+            if(ncarp.isDirectory()){
+                if(ncarp.delete()){//eliminacion con rmdir
+                    System.out.println("Carpeta eliminada con exito "+namecar);
+                }else{
+                    System.out.println("Error al eliminar la carpeta "+namecar);
+                }
+            }else{//eliminacion con rm 
+                if(ncarp.delete()){
+                    System.out.println("Carpeta eliminada con exito "+namecar);
+                }else{
+                    System.out.println("Error al eliminar la carpeta "+namecar);
+                }
+            }
+        }else{
+            System.out.println("Error, carpeta o archivo no existente: "+namecar);
+        }
+    }
+
     private static void crear(String namecar) {
-        File ncarp=new File("C:\\Users\\100054436\\Documents\\ESCOM\\SEMESTRE 6\\REDES 2", namecar);
+        File ncarp=new File(dirActual, namecar);
         if(ncarp.mkdir()){
             System.out.println("carpeta generada "+namecar +" con exito");
         }else{
@@ -60,7 +93,7 @@ public class servidor {
     private static void carpeta(Socket cl) {
         try {
             // Obtener el listado de archivos en la carpeta
-            File carpeta = new File("C:\\Users\\100054436\\Documents\\ESCOM\\SEMESTRE 6\\REDES 2");
+            File carpeta = new File(dirActual);
             String[] contenido = carpeta.list();
             // Enviar el listado al cliente
             PrintWriter out = new PrintWriter(cl.getOutputStream(), true);

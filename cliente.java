@@ -18,11 +18,13 @@ public class cliente {
             ex.printStackTrace();
         }
     }
+
+    private static String dirActual="/";
     private static void menu(Socket cl) {
         try {
             BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
             PrintWriter out = new PrintWriter(cl.getOutputStream(), true);
-            System.out.println("Hola que quieres hacer \n\tLISTAR \n\tCREAR");
+            System.out.println("Hola que quieres hacer \n\tLISTAR \n\tCREAR \n\tELIMINAR \n\tCambiar directorio: CD");
             String op=in.readLine();
             out.println(op);
             switch (op) {
@@ -34,7 +36,18 @@ public class cliente {
                     String ncarp = in.readLine();
                     out.println(ncarp);
                     break;
-            
+                case "ELIMINAR":
+                    System.out.print("Ingrese el nombre del archivo o carpeta a eliminar: ");
+                    String elimina = in.readLine();
+                    out.println(elimina);
+                    break;
+                case "CD":
+                    System.out.print("Escribe el nuevo directorio: ");
+                    String dir=in.readLine();
+                    out.println(dir);
+                    dirActual=dir;
+                    System.out.print("Listo direcccion cambiada a: "+dirActual);
+                    break;
                 default:
                     break;
             }
