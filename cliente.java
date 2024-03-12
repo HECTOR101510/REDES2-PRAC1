@@ -1,9 +1,12 @@
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.nio.file.Files;
 
 public class cliente {
     public static void main(String[] args) {
@@ -25,6 +28,7 @@ public class cliente {
             BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
             PrintWriter out = new PrintWriter(cl.getOutputStream(), true);
             System.out.println("Hola que quieres hacer \n\tLISTAR \n\tCREAR \n\tELIMINAR \n\tCambiar directorio: CD");
+            System.out.println("Enviar archivos o carpetas: PUT");
             String op=in.readLine();
             out.println(op);
             switch (op) {
@@ -48,9 +52,33 @@ public class cliente {
                     dirActual=dir;
                     System.out.print("Listo direcccion cambiada a: "+dirActual);
                     break;
+
+                case "PUT":
+                    System.out.print("Escribe el nombre del archivo: ");
+                    String nombre=in.readLine();
+                    put(nombre,cl);
+                    break;
                 default:
                     break;
             }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+    private static void put(String nombre, Socket cl){
+        try {
+            File archivo = new File(nombre);
+            if (!archivo.exists()) {
+                System.out.println("Error: El archivo no existe.");
+                return;
+            }
+            PrintWriter out = new PrintWriter(cl.getOutputStream(), true);
+            out.println(archivo.getName());  // Enviar solo el nombre del archivo
+            OutputStream os = cl.getOutputStream();
+            byte[] contenido = Files.readAllBytes(archivo.toPath());
+            os.write(contenido);
+            os.flush();
+            System.out.println("Archivo enviado con éxito al servidor.");
         } catch (Exception ex) {
             ex.printStackTrace();
         }

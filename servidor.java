@@ -1,10 +1,13 @@
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 public class servidor {
     public static void main(String[] args) {
@@ -23,7 +26,8 @@ public class servidor {
             ex.printStackTrace();
         }
     }
-    private static String dirActual = "/home/hector/Documentos/ESCOM/SEMESTRE 6/REDES 2/REDES2-PRAC1"; //direccion default para las pruebas
+    // private static String dirActual = "/home/hector/Documentos/ESCOM/SEMESTRE 6/REDES 2/REDES2-PRAC1"; //direccion default para las pruebas en este caso linux
+    private static String dirActual = "C:\\Users\\100054436\\Documents\\ESCOM\\SEMESTRE 6\\REDES 2"; //direccion default para las pruebas en este caso windows
     private static void menu(Socket cl){
         try {
             //l.getInputStream: flujo de datos que está llegando desde el cliente a través de la conexión de socket
@@ -55,11 +59,26 @@ public class servidor {
                     dirActual=dir;
                     System.out.println("\n>>>>>Listo direcccion cambiada a: "+dirActual);
                     break;
-
+                case "PUT":
+                    recibir(in,cl);
+                    break;
                 default:
                 System.out.println("Operacion no reconocida: "+op);
                     break;
             }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private static void recibir(BufferedReader in, Socket cl){
+        try {
+            String archivo = in.readLine();
+            String ruta = Paths.get(dirActual, archivo).toString();
+            InputStream ss = cl.getInputStream();
+            byte[] contenido = ss.readAllBytes();
+            Files.write(Paths.get(ruta), contenido);
+            System.out.println("Archivo recibido con éxito desde el cliente.");
         } catch (Exception ex) {
             ex.printStackTrace();
         }
@@ -70,7 +89,7 @@ public class servidor {
         if(ncarp.exists()){//si existe la carpeta 
             if(ncarp.isDirectory()){//verifica si existe un directorio
                 if(ncarp.delete()){//eliminacion con rmdir
-                    System.out.println("Carpeta eliminada con exito "+namecar);
+                    System.out.println("Carpeta o archivo eliminado con exito "+namecar);
                 }else{
                     System.out.println("Error al eliminar la carpeta "+namecar);
                 }
