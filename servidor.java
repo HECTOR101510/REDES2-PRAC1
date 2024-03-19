@@ -1,8 +1,10 @@
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -12,7 +14,7 @@ import java.nio.file.Paths;
 public class servidor {
     public static void main(String[] args) {
         try {
-            ServerSocket ss = new ServerSocket(5000);
+            ServerSocket ss = new ServerSocket(5050);
             System.out.println("Servicio iniciado, esperando por cliente...");
             for (;;) {
                 Socket cl = ss.accept();
@@ -39,6 +41,7 @@ public class servidor {
             //PrintWriter es el flujo de salida del socket de caracteres a bytes
             PrintWriter out=new PrintWriter(cl.getOutputStream(),true);
             String op=in.readLine();//sirve para leer una linea completa de texto del flijo de entrada y los guarda en una cadena
+            String[] p=op.split(" ");
             System.out.println(">>>>>Directorio actual: " + dirActual);
             out.println(op);//almacena la cadena de texto y se envia al cliente a traves del flujo de salida del socket
             switch (op) {
@@ -62,10 +65,37 @@ public class servidor {
                 case "PUT":
                     recibir(in,cl);
                     break;
+                case "GET":
+                    get(cl);
+                    break;
                 default:
                 System.out.println("Operacion no reconocida: "+op);
                     break;
             }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private static void get(Socket cl){
+        try {
+        BufferedReader in = new BufferedReader(new InputStreamReader(cl.getInputStream()));
+        String nombreArchivo = in.readLine();
+        File archivo = new File(dirActual, nombreArchivo);
+        if (archivo.exists()) {
+        OutputStream os = cl.getOutputStream();
+        FileInputStream fis = new FileInputStream(archivo);
+        byte[] buffer = new byte[4096];
+        int bytesLeidos;
+        while ((bytesLeidos = fis.read(buffer)) != -1) {
+            os.write(buffer, 0, bytesLeidos);
+        }
+        fis.close();
+        os.flush();
+        System.out.println("Archivo enviado: " + nombreArchivo);
+        } else {
+        System.out.println("Error: Archivo no encontrado: " + nombreArchivo);
+        }
         } catch (Exception ex) {
             ex.printStackTrace();
         }
@@ -112,7 +142,6 @@ public class servidor {
         }else{
             System.out.println("ERROR NO SE PUDO CREAR");
         }
-
     }
 
     private static void carpeta(Socket cl){//Para hacer el listado de los archivos que tenemos
