@@ -1,6 +1,8 @@
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
@@ -11,12 +13,12 @@ import java.nio.file.Files;
 public class cliente {
     public static void main(String[] args) {
         try {
-            Socket cl = new Socket(InetAddress.getByName("127.0.0.2"), 5000);
             System.out.println("Cliente conectado...\nRecibiendo archivos de la carpeta abierta...");
-            
+            while(true){
+            Socket cl = new Socket(InetAddress.getByName("127.0.0.2"), 5050);
             menu(cl);
-            // Cerrar la conexión con el servidor
-            cl.close();
+            System.out.println("\n");
+            }
         } catch (IOException ex) {
             ex.printStackTrace();
         }
@@ -28,7 +30,8 @@ public class cliente {
             BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
             PrintWriter out = new PrintWriter(cl.getOutputStream(), true);
             System.out.println("Hola que quieres hacer \n\tLISTAR \n\tCREAR \n\tELIMINAR \n\tCambiar directorio: CD");
-            System.out.println("Enviar archivos o carpetas: PUT");
+            System.out.println("\tEnviar archivos o carpetas: PUT \n\tGET \n\tQUIT");
+            System.out.print("Escribe tu eleccion: ");
             String op=in.readLine();
             out.println(op);
             switch (op) {
@@ -52,15 +55,26 @@ public class cliente {
                     dirActual=dir;
                     System.out.print("Listo direcccion cambiada a: "+dirActual);
                     break;
-
                 case "PUT":
                     System.out.print("Escribe el nombre del archivo: ");
                     String nombre=in.readLine();
                     put(nombre,cl);
                     break;
+                case "GET":
+                    System.out.print("Ingresa el nombre del archivo o carpeta a obtener: ");
+                    String archivo=in.readLine();
+                    out.println(archivo);
+                    get(archivo,cl);
+                    break;
+                case "QUIT":
+                    System.out.println("Saliendo de la aplicacion...");
+                    cl.close();
+                    System.exit(0);
+                    break;
                 default:
                     break;
             }
+            cl.close();
         } catch (Exception ex) {
             ex.printStackTrace();
         }
@@ -83,6 +97,36 @@ public class cliente {
             ex.printStackTrace();
         }
     }
+    private static void get(String nm, Socket cl) {
+    try {
+        PrintWriter out = new PrintWriter(cl.getOutputStream(), true);
+        out.println("GET " + nm);
+
+        BufferedReader in = new BufferedReader(new InputStreamReader(cl.getInputStream()));
+        String filename = in.readLine();
+        if (filename == null || filename.isEmpty()) {
+            System.out.println("No se puede obtener el nombre del archivo.");
+            return;
+        }
+
+        File archivo = new File(dirActual, filename);
+        FileOutputStream fos = new FileOutputStream(archivo);
+
+        int bytesRead;
+        byte[] buffer = new byte[4096];
+        InputStream is = cl.getInputStream();
+        while ((bytesRead = is.read(buffer)) != -1) {
+            fos.write(buffer, 0, bytesRead);
+        }
+
+        fos.close();
+        System.out.println("Archivo recibido desde el servidor y guardado como: " + archivo.getName());
+    } catch (Exception ex) {
+        ex.printStackTrace();
+    }
+}
+
+
     private static void Listado(Socket cl) {
         try {
             // Recibir el listado del servidor
