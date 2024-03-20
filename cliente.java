@@ -9,6 +9,10 @@ import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 public class cliente {
     public static void main(String[] args) {
@@ -51,8 +55,8 @@ public class cliente {
                 case "CD":
                     System.out.print("Escribe el nuevo directorio: ");
                     String dir=in.readLine();
-                    out.println(dir);
                     dirActual=dir;
+                    out.println(dir);
                     System.out.print("Listo direcccion cambiada a: "+dirActual);
                     break;
                 case "PUT":
@@ -61,10 +65,10 @@ public class cliente {
                     put(nombre,cl);
                     break;
                 case "GET":
-                    System.out.print("Ingresa el nombre del archivo o carpeta a obtener: ");
-                    String archivo=in.readLine();
-                    out.println(archivo);
-                    get(archivo,cl);
+                    System.out.println("Ingresa el nombre del archivo o carpeta a obtener:");
+                    String archivo = in.readLine();
+                    out.println("GET " + archivo);  // Enviar el comando y el nombre del archivo al servidor
+                    get(archivo, cl);
                     break;
                 case "QUIT":
                     System.out.println("Saliendo de la aplicacion...");
@@ -74,18 +78,25 @@ public class cliente {
                 default:
                     break;
             }
-            cl.close();
         } catch (Exception ex) {
             ex.printStackTrace();
         }
     }
-    private static void put(String nombre, Socket cl){
+    private static void put(String nombre, Socket cl) {
         try {
             File archivo = new File(nombre);
             if (!archivo.exists()) {
-                System.out.println("Error: El archivo no existe.");
+                System.out.println("Error: El archivo o directorio no existe.");
                 return;
             }
+
+            if (archivo.isDirectory()) {
+                // Si es un directorio, comprimirlo en un archivo ZIP antes de enviarlo
+                String zipNombre = nombre + ".zip";
+                zipDirectory(archivo, zipNombre);
+                archivo = new File(zipNombre);
+            }
+
             PrintWriter out = new PrintWriter(cl.getOutputStream(), true);
             out.println(archivo.getName());  // Enviar solo el nombre del archivo
             OutputStream os = cl.getOutputStream();
@@ -97,36 +108,50 @@ public class cliente {
             ex.printStackTrace();
         }
     }
-    private static void get(String nm, Socket cl) {
+    private static void zipDirectory(File dir, String zipDirName) {
     try {
-        PrintWriter out = new PrintWriter(cl.getOutputStream(), true);
-        out.println("GET " + nm);
-
-        BufferedReader in = new BufferedReader(new InputStreamReader(cl.getInputStream()));
-        String filename = in.readLine();
-        if (filename == null || filename.isEmpty()) {
-            System.out.println("No se puede obtener el nombre del archivo.");
-            return;
+        Path p = Files.createFile(Paths.get(zipDirName));
+        try (ZipOutputStream zs = new ZipOutputStream(Files.newOutputStream(p))) {
+            Path pp = Paths.get(dir.getName());
+            Files.walk(pp)
+              .filter(path -> !Files.isDirectory(path))
+              .forEach(path -> {
+                  ZipEntry zipEntry = new ZipEntry(pp.relativize(path).toString());
+                  try {
+                      zs.putNextEntry(zipEntry);
+                      Files.copy(path, zs);
+                      zs.closeEntry();
+                  } catch (IOException e) {
+                      System.err.println(e);
+                  }
+              });
         }
-
-        File archivo = new File(dirActual, filename);
-        FileOutputStream fos = new FileOutputStream(archivo);
-
-        int bytesRead;
-        byte[] buffer = new byte[4096];
-        InputStream is = cl.getInputStream();
-        while ((bytesRead = is.read(buffer)) != -1) {
-            fos.write(buffer, 0, bytesRead);
-        }
-
-        fos.close();
-        System.out.println("Archivo recibido desde el servidor y guardado como: " + archivo.getName());
-    } catch (Exception ex) {
-        ex.printStackTrace();
+    } catch (IOException e) {
+        System.err.println("No se pudo comprimir el directorio: " + e);
     }
 }
+    private static void get(String nm, Socket cl) {
+        try {
+            PrintWriter out = new PrintWriter(cl.getOutputStream(), true);
+            out.println(nm);  // Enviar el nombre del archivo que quieres obtener al servidor
 
+            // Crear un archivo con el nombre original
+            File archivo = new File(nm);
+            FileOutputStream fos = new FileOutputStream(archivo);
 
+            int bytesRead;
+            byte[] buffer = new byte[4096];
+            InputStream is = cl.getInputStream();
+            while ((bytesRead = is.read(buffer)) != -1) {
+                fos.write(buffer, 0, bytesRead);
+            }
+
+            fos.close();
+            System.out.println("Archivo recibido desde el servidor y guardado como: " + archivo.getName());
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
     private static void Listado(Socket cl) {
         try {
             // Recibir el listado del servidor

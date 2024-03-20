@@ -1,6 +1,7 @@
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -9,7 +10,11 @@ import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 public class servidor {
     public static void main(String[] args) {
@@ -58,12 +63,11 @@ public class servidor {
                 case "CD":
                     System.out.print("Escribe el nuevo directorio: ");
                     String dir=in.readLine();
-                    out.println(dir);
-                    dirActual=dir;
-                    System.out.println("\n>>>>>Listo direcccion cambiada a: "+dirActual);
+                    dirActual = dir;  // No cambiar el directorio actual en el servidor
+                    System.out.println("\n>>>>>Listo direcccion cambiada a: "+dir+" del cliente");
                     break;
                 case "PUT":
-                    recibir(in,cl);
+                    recibir(cl);
                     break;
                 case "GET":
                     get(cl);
@@ -77,40 +81,75 @@ public class servidor {
         }
     }
 
-    private static void get(Socket cl){
+    private static void get(Socket cl) {
         try {
-        BufferedReader in = new BufferedReader(new InputStreamReader(cl.getInputStream()));
-        String nombreArchivo = in.readLine();
-        File archivo = new File(dirActual, nombreArchivo);
-        if (archivo.exists()) {
-        OutputStream os = cl.getOutputStream();
-        FileInputStream fis = new FileInputStream(archivo);
-        byte[] buffer = new byte[4096];
-        int bytesLeidos;
-        while ((bytesLeidos = fis.read(buffer)) != -1) {
-            os.write(buffer, 0, bytesLeidos);
-        }
-        fis.close();
-        os.flush();
-        System.out.println("Archivo enviado: " + nombreArchivo);
-        } else {
-        System.out.println("Error: Archivo no encontrado: " + nombreArchivo);
-        }
+            BufferedReader in = new BufferedReader(new InputStreamReader(cl.getInputStream()));
+            String archivo = in.readLine();  // Leer el nombre del archivo que el cliente quiere obtener
+            File file = new File(dirActual, archivo);
+            if (!file.exists()) {
+                System.out.println("Error: El archivo no existe.");
+                return;
+            }
+            OutputStream os = cl.getOutputStream();
+            byte[] contenido = Files.readAllBytes(file.toPath());
+            os.write(contenido);
+            os.flush();
+            System.out.println("Archivo enviado con éxito al cliente.");
         } catch (Exception ex) {
             ex.printStackTrace();
         }
     }
 
-    private static void recibir(BufferedReader in, Socket cl){
+    private static void recibir(Socket cl) {
         try {
-            String archivo = in.readLine();
-            String ruta = Paths.get(dirActual, archivo).toString();
-            InputStream ss = cl.getInputStream();
-            byte[] contenido = ss.readAllBytes();
-            Files.write(Paths.get(ruta), contenido);
-            System.out.println("Archivo recibido con éxito desde el cliente.");
+            BufferedReader in = new BufferedReader(new InputStreamReader(cl.getInputStream()));
+            String filename = in.readLine();
+
+            if (filename == null || filename.isEmpty()) {
+                System.out.println("No se puede obtener el nombre del archivo.");
+                return;
+            }
+
+            File archivo = new File(dirActual + File.separator + filename);
+            FileOutputStream fos = new FileOutputStream(archivo);
+
+            int bytesRead;
+            byte[] buffer = new byte[4096];
+            InputStream is = cl.getInputStream();
+            while ((bytesRead = is.read(buffer)) != -1) {
+                fos.write(buffer, 0, bytesRead);
+            }
+
+            fos.close();
+            System.out.println("Archivo recibido desde el cliente y guardado como: " + archivo.getName());
+
+            if (filename.endsWith(".zip")) {
+                unzip(archivo.getAbsolutePath(), dirActual);
+                archivo.delete();
+            }
         } catch (Exception ex) {
             ex.printStackTrace();
+        }
+    }
+    private static void unzip(String zipFile, String outputDir) throws IOException {
+        try (ZipInputStream zis = new ZipInputStream(new FileInputStream(zipFile))) {
+            ZipEntry entry = zis.getNextEntry();
+            while (entry != null) {
+                File filePath = new File(outputDir, entry.getName());
+                if (!entry.isDirectory()) {
+                    FileOutputStream fos = new FileOutputStream(filePath);
+                    byte[] bytes = new byte[1024];
+                    int length;
+                    while ((length = zis.read(bytes)) >= 0) {
+                        fos.write(bytes, 0, length);
+                    }
+                    fos.close();
+                } else {
+                    Files.createDirectories(filePath.toPath());
+                }
+                zis.closeEntry();
+                entry = zis.getNextEntry();
+            }
         }
     }
 
